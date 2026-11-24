@@ -12,6 +12,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('map'); // 'map' | 'asha' | 'sms' | 'resources'
   const [villages, setVillages] = useState([]);
   const [resources, setResources] = useState([]);
+  const [selectedVillage, setSelectedVillage] = useState(null);
   const [preselectedVillageCode, setPreselectedVillageCode] = useState('V101');
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +47,14 @@ export default function App() {
     setActiveTab(targetTab);
   };
 
+  // Village selection handler for GIS surveillance map
+  const handleSelectVillage = (village) => {
+    setSelectedVillage(village);
+    if (village?.code) {
+      setPreselectedVillageCode(village.code);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
       
@@ -69,6 +78,8 @@ export default function App() {
         {activeTab === 'map' && (
           <SurveillanceMap
             villages={villages}
+            selectedVillage={selectedVillage}
+            onSelectVillage={handleSelectVillage}
             onSelectAction={handleMapAction}
           />
         )}

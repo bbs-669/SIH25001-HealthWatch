@@ -65,9 +65,16 @@ function createCustomPin(riskLevel) {
 }
 
 // Map Controller to fit all village bounds initially and pan when a village is selected
-function MapController({ selectedVillage, villages, resetKey }) {
+function MapController({ selectedVillage, villages, resetKey, onMapReady }) {
   const map = useMap();
   const initialFittedRef = React.useRef(false);
+
+  // Notify parent component of Leaflet map instance
+  React.useEffect(() => {
+    if (onMapReady) {
+      onMapReady(map);
+    }
+  }, [map, onMapReady]);
 
   // Initial fitBounds on loaded villages across Assam & Meghalaya
   React.useEffect(() => {
@@ -110,12 +117,22 @@ function MapController({ selectedVillage, villages, resetKey }) {
   return null;
 }
 
-export default function SurveillanceMap({ villages = [], onSelectAction }) {
-  const [selectedVillage, setSelectedVillage] = useState(null);
+export default function SurveillanceMap({ 
+  villages = [], 
+  selectedVillage: propSelectedVillage,
+  onSelectVillage, 
+  onSelectAction 
+}) {
+  const [map, setMap] = useState(null);
+  const [internalSelectedVillage, setInternalSelectedVillage] = useState(null);
+  const [highlightCard, setHighlightCard] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [districtFilter, setDistrictFilter] = useState('ALL');
   const [riskFilter, setRiskFilter] = useState('ALL');
   const [resetKey, setResetKey] = useState(0);
+
+  // Use controlled prop if passed, otherwise fallback to internal state
+  const selectedVillage = propSelectedVillage !== undefined ? propSelectedVillage : internalSelectedVillage;
 
   // Extract unique districts
   const districts = useMemo(() => {
@@ -138,11 +155,30 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
     });
   }, [villages, searchQuery, districtFilter, riskFilter]);
 
-  const handleVillageClick = (village) => {
-    setSelectedVillage(village);
-    if (village.latitude && village.longitude) {
-      setMapCenter([village.latitude, village.longitude]);
+  // Central village selection handler
+  const handleVillageSelect = (village) => {
+    setInternalSelectedVillage(village);
+    if (onSelectVillage) {
+      onSelectVillage(village);
     }
+
+    if (village) {
+      // Trigger temporary glowing highlight on the detail card
+      setHighlightCard(true);
+      setTimeout(() => setHighlightCard(false), 1200);
+
+      // Smoothly scroll detail card into view if needed
+      setTimeout(() => {
+        const cardElement = document.getElementById('village-detail-card-panel');
+        if (cardElement) {
+          cardElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 50);
+    }
+  };
+
+  const handleInspectDetails = (village) => {
+    handleVillageSelect(village);
   };
 
   return (
@@ -222,6 +258,7 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
               selectedVillage={selectedVillage}
               villages={villages}
               resetKey={resetKey}
+              onMapReady={setMap}
             />
 
             {filteredVillages.map((village) => {
@@ -232,11 +269,11 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
                   position={[village.latitude, village.longitude]}
                   icon={icon}
                   eventHandlers={{
-                    click: () => handleVillageClick(village),
+                    click: () => handleVillageSelect(village),
                   }}
                 >
                   <Popup>
-                    <div className="text-xs">
+                    <div className="text-xs p-1">
                       <div className="font-bold text-sm text-blue-400 mb-1">{village.name}</div>
                       <div><strong>Code:</strong> {village.code}</div>
                       <div><strong>District:</strong> {village.district}</div>
@@ -244,10 +281,22 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
                       <div><strong>Risk Score:</strong> {village.risk_score}</div>
                       <div><strong>Population:</strong> {village.population?.toLocaleString()}</div>
                       <button
-                        onClick={() => handleVillageClick(village)}
-                        className="mt-2 w-full py-1 px-2 rounded bg-blue-600 text-white font-semibold text-center hover:bg-blue-500"
+                        type="button"
+                        ref={(node) => {
+                          if (node) {
+                            L.DomEvent.disableClickPropagation(node);
+                            L.DomEvent.disableScrollPropagation(node);
+                          }
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVillageSelect(village);
+                        }}
+                        className="mt-2.5 w-full py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs text-center shadow-md shadow-blue-600/30 transition flex items-center justify-center space-x-1 cursor-pointer"
                       >
-                        Inspect Details
+                        <span>Inspect Details</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </Popup>
@@ -259,7 +308,7 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
           {/* Quick Fit All Villages Map Action */}
           <button
             onClick={() => {
-              setSelectedVillage(null);
+              handleVillageSelect(null);
               setResetKey((k) => k + 1);
             }}
             className="absolute top-4 right-4 z-[400] bg-slate-900/95 hover:bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg backdrop-blur flex items-center space-x-1.5 transition hover:text-white"
@@ -292,13 +341,17 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
         </div>
 
         {/* Side Panel: Selected Village Info or Quick Guidance */}
-        <div className="space-y-4">
+        <div id="village-detail-card-panel" className="space-y-4 scroll-mt-20">
           {selectedVillage ? (
-            <VillageDetailCard
-              village={selectedVillage}
-              onClose={() => setSelectedVillage(null)}
-              onSelectAction={onSelectAction}
-            />
+            <div className={`transition-all duration-300 rounded-xl ${
+              highlightCard ? 'ring-2 ring-blue-400 shadow-[0_0_25px_rgba(59,130,246,0.5)]' : ''
+            }`}>
+              <VillageDetailCard
+                village={selectedVillage}
+                onClose={() => handleVillageSelect(null)}
+                onSelectAction={onSelectAction}
+              />
+            </div>
           ) : (
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg text-center flex flex-col items-center justify-center min-h-[140px]">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-2">
@@ -324,10 +377,10 @@ export default function SurveillanceMap({ villages = [], onSelectAction }) {
                 return (
                   <div
                     key={v.code}
-                    onClick={() => handleVillageClick(v)}
+                    onClick={() => handleVillageSelect(v)}
                     className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition ${
                       isSelected
-                        ? 'bg-blue-600/20 border-blue-500 text-white'
+                        ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500 shadow-sm'
                         : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300'
                     }`}
                   >
