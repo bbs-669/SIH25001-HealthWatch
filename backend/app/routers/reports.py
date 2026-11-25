@@ -60,6 +60,13 @@ def submit_symptom_report(
     db.commit()
     db.refresh(new_report)
 
+    # Real-Time ML Outbreak Risk Recalculation Hook
+    try:
+        from ml_engine.predictor import evaluate_village_risk
+        evaluate_village_risk(db, new_report.village_code, auto_commit=True)
+    except Exception as ml_err:
+        print(f"[Warning] ML evaluation hook failed on symptom report: {ml_err}")
+
     response.status_code = status.HTTP_201_CREATED
     return new_report
 
@@ -96,6 +103,14 @@ def submit_water_quality_log(
     db.add(new_log)
     db.commit()
     db.refresh(new_log)
+
+    # Real-Time ML Outbreak Risk Recalculation Hook
+    try:
+        from ml_engine.predictor import evaluate_village_risk
+        evaluate_village_risk(db, new_log.village_code, auto_commit=True)
+    except Exception as ml_err:
+        print(f"[Warning] ML evaluation hook failed on water quality log: {ml_err}")
+
     return new_log
 
 
@@ -158,6 +173,13 @@ def handle_sms_webhook(
         db.commit()
         db.refresh(report)
 
+        # Real-Time ML Outbreak Risk Recalculation Hook
+        try:
+            from ml_engine.predictor import evaluate_village_risk
+            evaluate_village_risk(db, village.code, auto_commit=True)
+        except Exception as ml_err:
+            print(f"[Warning] ML evaluation hook failed on SMS Diarrhea: {ml_err}")
+
         return SMSWebhookResponse(
             status="success",
             parsed_village_code=village.code,
@@ -183,6 +205,13 @@ def handle_sms_webhook(
         db.commit()
         db.refresh(report)
 
+        # Real-Time ML Outbreak Risk Recalculation Hook
+        try:
+            from ml_engine.predictor import evaluate_village_risk
+            evaluate_village_risk(db, village.code, auto_commit=True)
+        except Exception as ml_err:
+            print(f"[Warning] ML evaluation hook failed on SMS Fever: {ml_err}")
+
         return SMSWebhookResponse(
             status="success",
             parsed_village_code=village.code,
@@ -207,6 +236,13 @@ def handle_sms_webhook(
         db.add(water_log)
         db.commit()
         db.refresh(water_log)
+
+        # Real-Time ML Outbreak Risk Recalculation Hook
+        try:
+            from ml_engine.predictor import evaluate_village_risk
+            evaluate_village_risk(db, village.code, auto_commit=True)
+        except Exception as ml_err:
+            print(f"[Warning] ML evaluation hook failed on SMS Dirty Water: {ml_err}")
 
         return SMSWebhookResponse(
             status="success",

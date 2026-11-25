@@ -121,7 +121,8 @@ export default function SurveillanceMap({
   villages = [], 
   selectedVillage: propSelectedVillage,
   onSelectVillage, 
-  onSelectAction 
+  onSelectAction,
+  onVillageUpdated,
 }) {
   const [map, setMap] = useState(null);
   const [internalSelectedVillage, setInternalSelectedVillage] = useState(null);
@@ -350,6 +351,7 @@ export default function SurveillanceMap({
                 village={selectedVillage}
                 onClose={() => handleVillageSelect(null)}
                 onSelectAction={onSelectAction}
+                onVillageUpdated={onVillageUpdated}
               />
             </div>
           ) : (
@@ -374,6 +376,10 @@ export default function SurveillanceMap({
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {filteredVillages.map((v) => {
                 const isSelected = selectedVillage?.code === v.code;
+                const primaryFactor = v.risk_factors && v.risk_factors.length > 0 && v.risk_factors[0] !== 'Water Quality Parameters Normal & Low Symptom Incidence'
+                  ? v.risk_factors[0]
+                  : null;
+
                 return (
                   <div
                     key={v.code}
@@ -384,7 +390,7 @@ export default function SurveillanceMap({
                         : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300'
                     }`}
                   >
-                    <div>
+                    <div className="max-w-[70%]">
                       <div className="flex items-center space-x-1.5">
                         <span className="text-xs font-bold">{v.name}</span>
                         <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-800 text-slate-400">
@@ -392,6 +398,11 @@ export default function SurveillanceMap({
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400">{v.district}</p>
+                      {primaryFactor && (
+                        <p className="text-[10px] text-amber-300/90 font-medium truncate mt-0.5" title={primaryFactor}>
+                          ⚠️ {primaryFactor}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right flex items-center space-x-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${

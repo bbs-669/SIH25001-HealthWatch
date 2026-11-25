@@ -24,8 +24,34 @@ class VillageCreate(VillageBase):
 class VillageResponse(VillageBase):
     id: int
     created_at: Optional[datetime] = None
+    risk_factors: Optional[List[str]] = None
+    outbreak_probability: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# ML & Explainable AI Schemas
+# ==========================================
+class RiskAnalysisResponse(BaseModel):
+    village_code: str
+    village_name: str
+    district: str
+    population: int
+    risk_score: float
+    risk_level: str
+    outbreak_probability: float
+    risk_factors: List[str]
+    model_used: Optional[str] = None
+    evaluated_at: str
+
+
+class RecalculateAllResponse(BaseModel):
+    status: str
+    villages_updated: int
+    summary: dict
+    timestamp: str
+
 
 
 # ==========================================

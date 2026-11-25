@@ -76,4 +76,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(dispatchData),
     }),
+
+  // 7. ML & Explainable AI Outbreak Risk Analysis
+  getVillageRiskAnalysis: (code) => request(`/villages/${code}/risk-analysis`),
+  recalculateAllRisk: () =>
+    request('/ml/recalculate-all', {
+      method: 'POST',
+    }),
+  getMlStatus: () => request('/ml/status'),
 };
